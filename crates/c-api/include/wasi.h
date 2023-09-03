@@ -170,6 +170,32 @@ WASI_API_EXTERN bool wasi_config_preopen_dir(wasi_config_t* config, const char* 
  */
 WASI_API_EXTERN bool wasi_config_preopen_socket(wasi_config_t* config, uint32_t fd_num, const char* host_port);
 
+/**
+ * \brief Configures a file-like object to be available within the WASI instance
+ * at a file descriptor specified by the caller.
+ *
+ * The inner_fd_num argument is the number of the file descriptor by which it
+ * will be known in WASM. The host_fd_num is the file descriptor of the
+ * file-like object being inserted into the WASI instance with file_acess_mode
+ * indicating the access mode of the file-like object.
+ */
+WASI_API_EXTERN bool wasi_config_insert_file(wasi_config_t *config, uint32_t inner_fd_num, uint32_t host_fd_num, uint32_t file_acess_mode);
+
+/**
+ * \brief Pushes a file-like object to be available witin the WASI instance at a
+ * file descriptor determined by the WASI config itself.
+ *
+ * The host_fd_num is the file descriptor of the file-like object being inserted
+ * into the WASI instance with file_acess_mode indicating the access mode of the
+ * file-like object.
+ *
+ * The uint32_t returned is the file descriptor number that the file-like object
+ * was inserted into the WASI instance at. If the file-like object could not be
+ * inserted into the WASI instance then the uint32_t returned is 0 and the
+ * out_error is set to a string describing the error.
+ */
+WASI_API_EXTERN uint32_t wasi_config_push_file(wasi_config_t *config, uint32_t host_fd_num, uint32_t file_acess_mode, const char **out_error);
+
 #undef own
 
 #ifdef __cplusplus
