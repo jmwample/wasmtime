@@ -11,9 +11,9 @@ use std::os::fd::FromRawFd;
 use std::os::raw::{c_char, c_int};
 use std::path::{Path, PathBuf};
 use std::slice;
-use wasi_common::pipe::ReadPipe;
-use wasi_common::file::FileAccessMode;
 use wasi_cap_std_sync::file::File as WasiStdFile;
+use wasi_common::file::FileAccessMode;
+use wasi_common::pipe::ReadPipe;
 use wasmtime_wasi::{
     sync::{Dir, TcpListener, WasiCtxBuilder},
     WasiCtx,
@@ -158,7 +158,10 @@ impl wasi_config_t {
 #[no_mangle]
 pub extern "C" fn wasi_config_new() -> Box<wasi_config_t> {
     // init next_open_fd to 3 because 0, 1 and 2 are reserved for stdio
-    Box::new(wasi_config_t{next_open_fd: 3, ..Default::default()})
+    Box::new(wasi_config_t {
+        next_open_fd: 3,
+        ..Default::default()
+    })
 }
 
 #[no_mangle]
@@ -341,12 +344,14 @@ pub unsafe extern "C" fn wasi_config_insert_file(
     file_access_mode: u32,
 ) {
     let file_access_mode = FileAccessMode::from_bits_truncate(file_access_mode);
-    
+
     // SAFETY: no other functions should call `from_raw_fd`, so there is only
     // one owner for the file descriptor.
     let f = unsafe { File::from_raw_fd(host_fd_num as i32) };
 
-    (*config).preopen_files.insert(inner_fd_num, (f, file_access_mode));
+    (*config)
+        .preopen_files
+        .insert(inner_fd_num, (f, file_access_mode));
 }
 
 #[no_mangle]
@@ -367,7 +372,8 @@ pub unsafe extern "C" fn wasi_config_push_file(
     if (*config).preopen_files.len() == u32::MAX as usize {
         // We are certain that our string doesn't have 0 bytes in the middle,
         // so we can .expect()
-        let c_string = std::ffi::CString::new("table has no free keys").expect("CString::new failed");
+        let c_string =
+            std::ffi::CString::new("table has no free keys").expect("CString::new failed");
         _out_error = &c_string.as_ptr(); // Move ownership to C api caller
         std::mem::forget(c_string);
         return 0;
@@ -377,12 +383,16 @@ pub unsafe extern "C" fn wasi_config_push_file(
     loop {
         inner_fd_num = (*config).next_open_fd;
         (*config).next_open_fd += 1;
-        if (*config).preopen_files.contains_key(&inner_fd_num) {
+        if (*config).preopen_files.contains_key(&inner_fd_num)
+            || (*config).preopen_sockets.contains_key(&inner_fd_num)
+        {
             continue;
         }
-        break
+        break;
     }
 
-    (*config).preopen_files.insert(inner_fd_num, (f, file_access_mode));
+    (*config)
+        .preopen_files
+        .insert(inner_fd_num, (f, file_access_mode));
     inner_fd_num
 }
